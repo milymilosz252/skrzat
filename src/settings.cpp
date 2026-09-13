@@ -1,5 +1,6 @@
 #include "settings.h"
 #include <Preferences.h>
+#include <nvs_flash.h>
 
 Settings settings;
 static Preferences prefs;
@@ -17,6 +18,7 @@ void Settings::load() {
   rotation   = prefs.getUChar("rot", 1);
   swapUpDown = prefs.getBool("swap", false);
   powerSave  = prefs.getUChar("pwr", 1);
+  language   = prefs.getUChar("lang", 0);
   prefs.end();
 
   // Normalise: strip a trailing slash so we can concatenate paths blindly.
@@ -36,7 +38,18 @@ void Settings::save() {
   prefs.putUChar("rot", rotation);
   prefs.putBool("swap", swapUpDown);
   prefs.putUChar("pwr", powerSave);
+  prefs.putUChar("lang", language);
   prefs.end();
+}
+
+// Nuclear option: drop our namespace and let WiFiManager's credentials go
+// with it, so the next boot comes up as a factory-fresh device.
+void Settings::factoryReset() {
+  prefs.begin(NS, false);
+  prefs.clear();
+  prefs.end();
+  nvs_flash_erase();
+  nvs_flash_init();
 }
 
 void Settings::clearHa() {

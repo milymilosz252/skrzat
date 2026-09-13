@@ -3,6 +3,7 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include <ArduinoJson.h>
+#include "i18n.h"
 
 HaClient ha;
 
@@ -178,68 +179,68 @@ int HaClient::actionsFor(const Entity& e, Action* out, int maxOut) {
   };
 
   if (e.domain == "light") {
-    add("Przelacz",      "", "toggle",    0);
-    add("Jasniej  +20%", "", "__bright", +20);
-    add("Ciemniej -20%", "", "__bright", -20);
-    add("Pelna moc",     "", "turn_on",  100);
-    add("Przycmij 10%",  "", "turn_on",   10);
-    add("Wylacz",        "", "turn_off",   0);
+    add(T(S_TOGGLE),      "", "toggle",    0);
+    add(T(S_BRIGHTER), "", "__bright", +20);
+    add(T(S_DIMMER), "", "__bright", -20);
+    add(T(S_FULL),     "", "turn_on",  100);
+    add(T(S_DIM10),  "", "turn_on",   10);
+    add(T(S_TURN_OFF),        "", "turn_off",   0);
   } else if (e.domain == "scene") {
-    add("Aktywuj scene", "", "turn_on", 0);
+    add(T(S_ACTIVATE), "", "turn_on", 0);
   } else if (e.domain == "script") {
-    add("Uruchom",       "", "turn_on", 0);
-    add("Zatrzymaj",     "", "turn_off", 0);
+    add(T(S_RUN),       "", "turn_on", 0);
+    add(T(S_STOP),     "", "turn_off", 0);
   } else if (e.domain == "button" || e.domain == "input_button") {
-    add("Nacisnij",      "", "press", 0);
+    add(T(S_PRESS),      "", "press", 0);
   } else if (e.domain == "automation") {
-    add("Uruchom teraz", "", "trigger", 0);
-    add("Wlacz",         "", "turn_on", 0);
-    add("Wylacz",        "", "turn_off", 0);
+    add(T(S_RUN_NOW), "", "trigger", 0);
+    add(T(S_TURN_ON),         "", "turn_on", 0);
+    add(T(S_TURN_OFF),        "", "turn_off", 0);
   } else if (e.domain == "media_player") {
-    add("Play / Pauza",  "", "media_play_pause", 0);
-    add("Glosniej",      "", "volume_up",   0);
-    add("Ciszej",        "", "volume_down", 0);
-    add("Nastepny",      "", "media_next_track", 0);
-    add("Poprzedni",     "", "media_previous_track", 0);
-    add("Wycisz",        "", "volume_mute", 0);
-    add("Wylacz",        "", "turn_off", 0);
-    add("Wlacz",         "", "turn_on",  0);
+    add(T(S_PLAYPAUSE),  "", "media_play_pause", 0);
+    add(T(S_LOUDER),      "", "volume_up",   0);
+    add(T(S_QUIETER),        "", "volume_down", 0);
+    add(T(S_NEXT),      "", "media_next_track", 0);
+    add(T(S_PREV),     "", "media_previous_track", 0);
+    add(T(S_MUTE),        "", "volume_mute", 0);
+    add(T(S_TURN_OFF),        "", "turn_off", 0);
+    add(T(S_TURN_ON),         "", "turn_on",  0);
   } else if (e.domain == "cover" || e.domain == "valve") {
-    add("Otworz",        "", "open_cover",  0);
-    add("Zamknij",       "", "close_cover", 0);
+    add(T(S_OPEN),        "", "open_cover",  0);
+    add(T(S_CLOSE),       "", "close_cover", 0);
     add("Stop",          "", "stop_cover",  0);
   } else if (e.domain == "lock") {
-    add("Zamknij zamek", "", "lock",   0);
-    add("Otworz zamek",  "", "unlock", 0);
+    add(T(S_LOCK), "", "lock",   0);
+    add(T(S_UNLOCK),  "", "unlock", 0);
   } else if (e.domain == "vacuum") {
     add("Start",         "", "start", 0);
-    add("Pauza",         "", "pause", 0);
-    add("Do bazy",       "", "return_to_base", 0);
+    add(T(S_PAUSE),         "", "pause", 0);
+    add(T(S_DOCK),       "", "return_to_base", 0);
   } else if (e.domain == "todo") {
     // Read-only from the stick; listing items needs the todo websocket API.
   } else {
-    add("Przelacz",      "", "toggle",   0);
-    add("Wlacz",         "", "turn_on",  0);
-    add("Wylacz",        "", "turn_off", 0);
+    add(T(S_TOGGLE),      "", "toggle",   0);
+    add(T(S_TURN_ON),         "", "turn_on",  0);
+    add(T(S_TURN_OFF),        "", "turn_off", 0);
   }
   return n;
 }
 
 const char* HaClient::domainLabel(const char* domain) {
   String d(domain);
-  if (d == "light")         return "Swiatla";
-  if (d == "switch")        return "Gniazdka";
-  if (d == "scene")         return "Sceny";
-  if (d == "script")        return "Skrypty";
-  if (d == "automation")    return "Automatyzacje";
-  if (d == "media_player")  return "Media";
+  if (d == "light")         return T(S_LIGHTS);
+  if (d == "switch")        return T(S_SWITCHES);
+  if (d == "scene")         return T(S_SCENES);
+  if (d == "script")        return T(S_SCRIPTS);
+  if (d == "automation")    return T(S_AUTOMATIONS);
+  if (d == "media_player")  return T(S_MEDIA);
   if (d == "cover")         return "Rolety";
   if (d == "fan")           return "Wentylacja";
   if (d == "lock")          return "Zamki";
   if (d == "climate")       return "Klimat";
   if (d == "vacuum")        return "Odkurzacz";
   if (d == "button")        return "Przyciski";
-  if (d == "input_boolean") return "Przelaczniki";
+  if (d == "input_boolean") return T(S_SWITCHES);
   if (d == "input_button")  return "Przyciski";
   if (d == "todo")          return "Listy";
   return domain;

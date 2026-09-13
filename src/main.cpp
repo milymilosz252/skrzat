@@ -16,12 +16,14 @@
 #include "ha_client.h"
 #include "claude_link.h"
 #include "ui.h"
+#include "i18n.h"
+#include <ESPmDNS.h>
 
 static const char* FW_VERSION = "1.0.0";
 static const char* AP_NAME    = "Skrzat-Setup";
 static const char* HOSTNAME   = "skrzat";
 
-enum Screen { SCR_MAIN, SCR_HA, SCR_BUDDY, SCR_LIST, SCR_ENTITY, SCR_SETTINGS, SCR_INFO, SCR_ASK, SCR_NOTIFY };
+enum Screen { SCR_MAIN, SCR_HA, SCR_BUDDY, SCR_WIFI, SCR_CONFIRM, SCR_LIST, SCR_ENTITY, SCR_SETTINGS, SCR_INFO, SCR_ASK, SCR_NOTIFY };
 
 struct Frame {
   Screen screen = SCR_MAIN;
@@ -47,6 +49,14 @@ static Frame& top() { return stack.back(); }
 // only waiting for a button or an HTTP request.
 // Keeps the link to Claude Code alive across AP hiccups. Runs even while the
 // screen sleeps - a question must always be able to reach us.
+// Home Assistant advertises _home-assistant._tcp. Finding it saves the user
+// from typing an address; the token still has to be entered by hand.
+static String discoverHa() {
+  int n = MDNS.queryService("home-assistant", "tcp");
+  if (n <= 0) return "";
+  return "http://" + MDNS.IP(0).toString() + ":" + String(MDNS.port(0));
+}
+
 static void networkWatchdog() {
   static uint32_t lastCheck = 0;
   static uint32_t offlineSince = 0;
@@ -132,15 +142,15 @@ static void addRow(const String& id, const String& label, const String& sub,
 }
 
 static void buildMain() {
-  top().title = "Pilot";
+  top().title = T(S_HOME);
 
-  addRow("@ha", "Home Assistant",
-         ha.online ? String(ha.entities.size()) + " encji" : "offline",
+  addRow("@ha", T(S_HA),
+         ha.online ? String(ha.entities.size()) + " " + T(S_ENTITIES) : "offline",
          ha.online ? ui::C_ON : ui::C_ERR, true);
 
   const char* claudeState = claudeLink.pending() ? "pyta" :
                             claudeLink.asksServed ? "gotowy" : "czeka";
-  addRow("@claude", "Claude Code", claudeState,
+  addRow("@claude", T(S_CLAUDE), claudeState,
          claudeLink.pending() ? ui::C_CLAUDE : ui::C_OFF, true);
 }
 
@@ -150,16 +160,16 @@ static void buildHa() {
     size_t n = ha.countDomain(domain);
     if (n) addRow(String("@d:") + domain, label, String(n), 0, true);
   };
-  cat("light", "Swiatla");
-  cat("scene", "Sceny");
-  cat("automation", "Automatyzacje");
-  cat("script", "Skrypty");
-  cat("media_player", "Media");
-  cat("switch", "Gniazdka");
-  addRow("@lightsoff", "Zgas wszystko", "", ui::C_WARN, false);
-  addRow("@areas",     "Pomieszczenia", "", 0, true);
-  addRow("@domains",   "Kategorie",     "", 0, true);
-  addRow("@all",       "Wszystkie encje", String(ha.entities.size()), 0, true);
+  cat("light", T(S_LIGHTS));
+  cat("scene", T(S_SCENES));
+  cat("automation", T(S_AUTOMATIONS));
+  cat("script", T(S_SCRIPTS));
+  cat("media_player", T(S_MEDIA));
+  cat("switch", T(S_SWITCHES));
+  addRow("@lightsoff", T(S_ALL_OFF), "", ui::C_WARN, false);
+  addRow("@areas",     T(S_ROOMS), "", 0, true);
+  addRow("@domains",   T(S_CATEGORIES),     "", 0, true);
+  addRow("@all",       T(S_ALL_ENTITIES), String(ha.entities.size()), 0, true);
 }
 
 static void buildEntityList(const String& filter) {
@@ -181,7 +191,7 @@ static void buildAreas() {
   }
   int orphans = 0;
   for (auto& e : ha.entities) if (!e.area.length()) orphans++;
-  if (orphans) addRow("@a:", "Bez pomieszczenia", String(orphans), 0, true);
+  if (orphans) addRow("@a:", T(S_NO_ROOM), String(orphans), 0, true);
 }
 
 static void buildDomains() {
@@ -209,28 +219,54 @@ static void buildEntityActions(const String& entityId) {
 }
 
 static void buildSettings() {
-  addRow("@refresh", "Odswiez z HA", "", 0, false);
-  addRow("@bright",  "Jasnosc",  String(settings.brightness), 0, false);
-  addRow("@sleep",   "Uspienie", String(settings.sleepSec) + "s", 0, false);
-  addRow("@beep",    "Dzwiek",   settings.beep ? "tak" : "nie", 0, false);
-  addRow("@vol",     "Glosnosc", String(settings.volume), 0, false);
-  addRow("@power",   "Oszczedzanie",
-         settings.powerSave == 0 ? "wyl" : settings.powerSave == 1 ? "norm" : "max",
+  addRow("@refresh", T(S_REFRESH), "", 0, false);
+  addRow("@bright",  T(S_BRIGHTNESS), String(settings.brightness), 0, false);
+  addRow("@sleep",   T(S_SLEEP), String(settings.sleepSec) + "s", 0, false);
+  addRow("@sound",   T(S_SOUND), settings.beep ? T(S_YES) : T(S_NO), 0, false);
+  addRow("@vol",     T(S_VOLUME), String(settings.volume), 0, false);
+  addRow("@power",   T(S_POWER),
+         settings.powerSave == 0 ? "off" : settings.powerSave == 1 ? "norm" : "max",
          settings.powerSave == 2 ? ui::C_ON : 0, false);
-  addRow("@swap",    "Zamien gora/dol", settings.swapUpDown ? "tak" : "nie", 0, false);
-  addRow("@rot",     "Obrot ekranu", String(settings.rotation), 0, false);
-  addRow("@info",    "Informacje", "", 0, true);
-  addRow("@portal",  "Konfiguracja WiFi/HA", "", ui::C_WARN, false);
-  addRow("@reboot",  "Restart", "", ui::C_WARN, false);
+  addRow("@lang",    T(S_LANGUAGE), settings.language ? "EN" : "PL", 0, false);
+  addRow("@swap",    T(S_SWAP), settings.swapUpDown ? T(S_YES) : T(S_NO), 0, false);
+  addRow("@rot",     T(S_ROTATE), String(settings.rotation), 0, false);
+  addRow("@findha",  T(S_FIND_HA), "", 0, false);
+  addRow("@wifiscan", T(S_WIFI_NETS), "", 0, true);
+  addRow("@portal",  T(S_WIFI_CHANGE), "", ui::C_WARN, false);
+  addRow("@info",    T(S_INFO), "", 0, true);
+  addRow("@factory", T(S_FACTORY), "", ui::C_ERR, true);
+  addRow("@reboot",  T(S_REBOOT), "", ui::C_WARN, false);
 }
 
-// "za 2h14" / "za 3d 5h" until an absolute reset timestamp.
+// Read-only list of what is on the air, for diagnosing a bad connection.
+static void buildWifiScan() {
+  int n = WiFi.scanComplete();
+  if (n == WIFI_SCAN_FAILED) { WiFi.scanNetworks(true); n = WIFI_SCAN_RUNNING; }
+  if (n == WIFI_SCAN_RUNNING) {
+    addRow("", T(S_SCANNING), "", ui::C_DIM, false);
+    return;
+  }
+  for (int i = 0; i < n && i < 16; i++) {
+    int rssi = WiFi.RSSI(i);
+    uint16_t c = rssi > -60 ? ui::C_ON : rssi > -75 ? ui::C_WARN : ui::C_ERR;
+    bool mine = WiFi.SSID(i) == WiFi.SSID();
+    addRow("", (mine ? "* " : "") + WiFi.SSID(i), String(rssi), c, false);
+  }
+  if (!n) addRow("", T(S_EMPTY), "", ui::C_DIM, false);
+}
+
+static void buildConfirm() {
+  addRow("@cancel",  T(S_NO), "", 0, false);
+  addRow("@doreset", T(S_YES), "", ui::C_ERR, false);
+}
+
+// "za 2h14" / "3d 5h" until an absolute reset timestamp.
 static String untilStr(uint32_t resetEpoch) {
   if (!resetEpoch) return "?";
   time_t now = time(nullptr);
   if (now < 1600000000) return "?";          // clock not synced yet
   long left = (long)resetEpoch - (long)now;
-  if (left <= 0) return "teraz";
+  if (left <= 0) return "0m";
   int days = left / 86400, hours = (left % 86400) / 3600, mins = (left % 3600) / 60;
   char buf[16];
   if (days)       snprintf(buf, sizeof(buf), "%dd %dh", days, hours);
@@ -241,9 +277,9 @@ static String untilStr(uint32_t resetEpoch) {
 
 static String tokensStr(uint64_t n) {
   char buf[16];
-  if (n >= 1000000000ULL) snprintf(buf, sizeof(buf), "%.1fB", n / 1e9);
+  if (n >= 1000000000ULL)   snprintf(buf, sizeof(buf), "%.1fB", n / 1e9);
   else if (n >= 1000000ULL) snprintf(buf, sizeof(buf), "%.0fM", n / 1e6);
-  else if (n >= 1000ULL) snprintf(buf, sizeof(buf), "%.0fk", n / 1e3);
+  else if (n >= 1000ULL)    snprintf(buf, sizeof(buf), "%.0fk", n / 1e3);
   else snprintf(buf, sizeof(buf), "%llu", (unsigned long long)n);
   return String(buf);
 }
@@ -257,26 +293,26 @@ static int buddyContent(UsageBar* bars, int maxBars,
 
   if (!claudeLink.hasUsage()) {
     happy = false;
-    if (nNotes < maxNotes) notes[nNotes++] = "Limity: brak danych";
-    if (nNotes < maxNotes) notes[nNotes++] = "claude-stick usage";
+    if (nNotes < maxNotes) notes[nNotes++] = String(T(S_LIMITS)) + ": " + T(S_NO_DATA);
+    if (nNotes < maxNotes) notes[nNotes++] = "skrzat usage";
   } else if (claudeLink.usageStale) {
     happy = false;
-    if (nNotes < maxNotes) notes[nNotes++] = "Limity nieaktualne";
-    if (nNotes < maxNotes) notes[nNotes++] = "brak swiezych danych";
+    if (nNotes < maxNotes) notes[nNotes++] = String(T(S_LIMITS)) + ": " + T(S_OUTDATED);
+    if (nNotes < maxNotes) notes[nNotes++] = "skrzat usage";
   } else {
     if (nBars < maxBars && claudeLink.usageFiveHourUsed >= 0)
-      bars[nBars++] = UsageBar{"5h", untilStr(claudeLink.usageFiveHourReset),
+      bars[nBars++] = UsageBar{T(S_USED_5H), untilStr(claudeLink.usageFiveHourReset),
                                    claudeLink.usageFiveHourUsed};
     if (nBars < maxBars && claudeLink.usageSevenDayUsed >= 0)
-      bars[nBars++] = UsageBar{"7d", untilStr(claudeLink.usageSevenDayReset),
+      bars[nBars++] = UsageBar{T(S_USED_7D), untilStr(claudeLink.usageSevenDayReset),
                                    claudeLink.usageSevenDayUsed};
     happy = claudeLink.usageFiveHourUsed < 0 || claudeLink.usageFiveHourUsed <= 80;
   }
 
   if (nNotes < maxNotes && claudeLink.usageTokensToday)
-    notes[nNotes++] = "dzis " + tokensStr(claudeLink.usageTokensToday) + " tok.";
+    notes[nNotes++] = String(T(S_TODAY)) + " " + tokensStr(claudeLink.usageTokensToday);
   if (nNotes < maxNotes && !nBars)
-    notes[nNotes++] = String(claudeLink.asksServed) + " pytan w sesji";
+    notes[nNotes++] = String(claudeLink.asksServed) + " " + T(S_ASKS_SESSION);
   return nBars;
 }
 
@@ -333,6 +369,8 @@ static void rebuild() {
       break;
     case SCR_ENTITY:   buildEntityActions(top().filter); break;
     case SCR_SETTINGS: buildSettings(); break;
+    case SCR_WIFI:     buildWifiScan(); break;
+    case SCR_CONFIRM:  buildConfirm(); break;
     case SCR_INFO:     buildClaude(); break;
     default: break;
   }
@@ -404,7 +442,42 @@ static void activate() {
     needRedraw = true;
     return;
   }
-  if (id == "@beep")   { settings.beep = !settings.beep; settings.save(); needRedraw = true; return; }
+  if (id == "@sound")   { settings.beep = !settings.beep; settings.save(); needRedraw = true; return; }
+  if (id == "@lang") {
+    langSet(settings.language ? 0 : 1);
+    settings.save();
+    needRedraw = true;
+    return;
+  }
+  if (id == "@findha") {
+    ui::toast(T(S_FIND_HA), ui::C_SEL);
+    String url = discoverHa();
+    if (url.length()) {
+      settings.haUrl = url;
+      settings.save();
+      doRefresh(true);
+      ui::toast(String(T(S_FOUND)) + ": " + url, ui::C_ON);
+    } else {
+      ui::toast(T(S_NOT_FOUND), ui::C_ERR);
+    }
+    needRedraw = true;
+    return;
+  }
+  if (id == "@wifiscan") {
+    WiFi.scanDelete();
+    WiFi.scanNetworks(true);
+    pushFrame(SCR_WIFI, T(S_WIFI_NETS), "");
+    return;
+  }
+  if (id == "@factory") { pushFrame(SCR_CONFIRM, T(S_FACTORY_CONFIRM), ""); return; }
+  if (id == "@cancel")  { popFrame(); return; }
+  if (id == "@doreset") {
+    ui::drawMessage(T(S_FACTORY), T(S_RESTARTING), ui::C_ERR);
+    settings.factoryReset();
+    WiFi.disconnect(true, true);          // drop the stored credentials too
+    delay(800);
+    ESP.restart();
+  }
   if (id == "@power") {
     settings.powerSave = (settings.powerSave + 1) % 3;
     settings.save();
@@ -635,6 +708,11 @@ void setup() {
     }
   }
 
+  if (WiFi.status() == WL_CONNECTED && !settings.haUrl.length()) {
+    String found = discoverHa();
+    if (found.length()) { settings.haUrl = found; settings.save(); }
+  }
+
   configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.google.com");
   claudeLink.begin(HOSTNAME);
 
@@ -734,7 +812,7 @@ void loop() {
                                      0, 0, 0, 0, 0, -2, -3, -3, -3, -2 };
       int lookX = LOOK[(millis() / 450) % (sizeof(LOOK) / sizeof(LOOK[0]))];
       ui::drawBuddy(bars, nBars, notes, nNotes, ui::C_CLAUDE, blink, happy,
-                    lookX, "M5:szczegoly  M5(dl):wstecz");
+                    lookX, T(S_HINT_BUDDY));
       needRedraw = false;
     }
     delay(10);
@@ -744,8 +822,7 @@ void loop() {
   if (needRedraw || ui::toasting()) {
     rebuild();
     const char* hint = top().screen == SCR_MAIN
-                         ? "M5:wybierz  M5(dl):ustawienia"
-                         : "gora/dol   M5:ok   M5(dl):wstecz";
+                         ? T(S_HINT_MAIN) : T(S_HINT_LIST);
     ui::drawList(top().title.c_str(), items, top().cursor, top().top,
                  ui::visibleRows(), hint);
     needRedraw = false;

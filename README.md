@@ -148,8 +148,27 @@ Join it from your phone, open `http://192.168.4.1`, and fill in:
 The token goes straight from your phone into the device's NVS. It is never
 written to a file on your computer and never leaves your network.
 
+If Home Assistant advertises itself over mDNS (`_home-assistant._tcp`), Skrzat
+finds the address on its own — on first boot when the field is empty, or on
+demand from **Settings → Find Home Assistant**. Only the token has to be typed.
+
 To reconfigure later: hold the side button while powering on, or use
-**Ustawienia → Konfiguracja WiFi/HA**.
+**Settings → Change Wi-Fi**.
+
+### Settings menu
+
+| Entry | What it does |
+|---|---|
+| Refresh from HA | re-reads every entity now |
+| Brightness / Sleep / Sound / Volume | display and buzzer |
+| Power saving | `off` / `norm` / `max`, see below |
+| Language | **PL / EN**, switched live — every string goes through one table in `src/i18n.cpp` |
+| Swap up/down · Rotate screen | button and orientation fixes for however you hold it |
+| Find Home Assistant | mDNS discovery, fills the URL in |
+| Wi-Fi networks | live scan with RSSI, your own network marked `*` — for diagnosing a weak link |
+| Change Wi-Fi | reopens the provisioning portal |
+| Factory reset | erases the whole NVS partition **including Wi-Fi credentials**, asks first |
+| Reboot | restart |
 
 ---
 

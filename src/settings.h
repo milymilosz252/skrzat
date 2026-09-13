@@ -14,10 +14,12 @@ struct Settings {
   uint8_t  rotation   = 1;       // 1 or 3 - landscape, either way up
   bool     swapUpDown = false;   // flips which side button scrolls up
   uint8_t  powerSave  = 1;       // 0 = off, 1 = normal, 2 = aggressive
+  uint8_t  language   = 0;       // 0 = Polish, 1 = English
 
   void load();
   void save();
   void clearHa();
+  void factoryReset();   // wipes every stored setting, including Wi-Fi
   bool configured() const { return haUrl.length() > 0 && haToken.length() > 0; }
 };
 
