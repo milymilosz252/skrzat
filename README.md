@@ -155,6 +155,10 @@ demand from **Settings → Find Home Assistant**. Only the token has to be typed
 To reconfigure later: hold the side button while powering on, or use
 **Settings → Change Wi-Fi**.
 
+The main menu has three entries: **Home Assistant**, **Claude Code** and
+**Settings**. Both of the first two show their state inline — entity count, or
+whether a question is waiting.
+
 ### Settings menu
 
 | Entry | What it does |
@@ -231,7 +235,7 @@ It binds to loopback only. Logs land in `~/Library/Logs/skrzat-server.log`.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/status` | IP, RSSI, battery, HA state, idle timer, sleep stage |
+| `GET` | `/status` | firmware version and build stamp, IP, RSSI, battery, HA state, idle timer, sleep stage |
 | `POST` | `/claude/ask` | `{id,title,question,options[],timeout}` — max 8 options |
 | `GET` | `/claude/answer?id=` | `pending` / `answered` / `dismissed` / `timeout` |
 | `POST` | `/claude/cancel` | withdraw the pending question |

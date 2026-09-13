@@ -36,6 +36,8 @@ void ClaudeLink::routes() {
   server.on("/status", HTTP_GET, [this]() {
     JsonDocument d;
     d["device"]     = hostname;
+    d["fw"]         = firmware;
+    d["build"]      = build;
     d["ip"]         = WiFi.localIP().toString();
     d["rssi"]       = WiFi.RSSI();
     d["battery"]    = M5.Power.getBatteryLevel();

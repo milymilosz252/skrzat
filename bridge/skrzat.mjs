@@ -137,6 +137,7 @@ async function cmdStatus() {
     process.stdout.write(
       [
         `stick     ${s.device} @ ${s.ip}  (RSSI ${s.rssi} dBm)`,
+        `firmware  v${s.fw ?? '?'}  (${s.build ?? '?'})`,
         `bateria   ${s.battery}%${s.charging ? ' (ladowanie)' : ''}`,
         `HA        ${s.ha_online ? `ok, ${s.entities} encji` : `BLAD: ${s.ha_error}`}`,
         `pytania   ${s.ask_status} (obsluzonych: ${s.asks})`,

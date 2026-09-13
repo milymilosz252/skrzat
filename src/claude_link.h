@@ -46,6 +46,8 @@ public:
   uint32_t asksServed = 0;
 
   String hostname;
+  const char* firmware = "?";
+  const char* build = "?";
   uint32_t reconnects = 0;
   void restartMdns();
 

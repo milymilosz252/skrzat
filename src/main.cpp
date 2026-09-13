@@ -19,7 +19,8 @@
 #include "i18n.h"
 #include <ESPmDNS.h>
 
-static const char* FW_VERSION = "1.0.0";
+static const char* FW_VERSION = "1.1.0";
+static const char* FW_BUILD   = __DATE__ " " __TIME__;
 static const char* AP_NAME    = "Skrzat-Setup";
 static const char* HOSTNAME   = "skrzat";
 
@@ -152,6 +153,8 @@ static void buildMain() {
                             claudeLink.asksServed ? "gotowy" : "czeka";
   addRow("@claude", T(S_CLAUDE), claudeState,
          claudeLink.pending() ? ui::C_CLAUDE : ui::C_OFF, true);
+
+  addRow("@settings", T(S_SETTINGS), "", ui::C_DIM, true);
 }
 
 // Everything Home Assistant, one level down.
@@ -714,6 +717,8 @@ void setup() {
   }
 
   configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.google.com");
+  claudeLink.firmware = FW_VERSION;
+  claudeLink.build = FW_BUILD;
   claudeLink.begin(HOSTNAME);
 
   stack.clear();
